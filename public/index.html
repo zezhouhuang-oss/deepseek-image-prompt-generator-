@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI图片分析提示词生成器</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- TensorFlow.js 用于本地分析 -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <h1><i class="fas fa-camera"></i> AI图片分析提示词生成器</h1>
+            <p class="subtitle">上传图片 → AI分析 → 生成优质提示词</p>
+        </header>
+
+        <!-- 主内容区 -->
+        <div class="main-content">
+            <!-- 左侧：图片上传和处理 -->
+            <div class="left-panel">
+                <div class="upload-section">
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                        <h3>拖放图片到这里</h3>
+                        <p>或点击选择文件</p>
+                        <p class="file-types">支持 JPG, PNG, WebP, GIF (最大10MB)</p>
+                        <input type="file" id="fileInput" accept="image/*" hidden>
+                        <button class="btn btn-outline" onclick="document.getElementById('fileInput').click()">
+                            <i class="fas fa-folder-open"></i> 选择图片
+                        </button>
+                    </div>
+                    
+                    <div class="image-preview-container">
+                        <img id="imagePreview" class="image-preview" alt="图片预览">
+                        <div class="image-controls">
+                            <button class="btn btn-primary" onclick="analyzeImage()" id="analyzeBtn">
+                                <i class="fas fa-search"></i> AI分析图片
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearImage()">
+                                <i class="fas fa-trash"></i> 清除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分析进度 -->
+                <div class="progress-section" id="progressSection" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <p id="progressText">正在分析图片...</p>
+                </div>
+
+                <!-- 分析模式选择 -->
+                <div class="analysis-mode">
+                    <h3><i class="fas fa-cogs"></i> 分析模式</h3>
+                    <div class="mode-buttons">
+                        <button class="mode-btn active" data-mode="local" onclick="setMode('local')">
+                            <i class="fas fa-laptop"></i> 本地分析
+                            <span class="badge">快速</span>
+                        </button>
+                        <button class="mode-btn" data-mode="api" onclick="setMode('api')">
+                            <i class="fas fa-cloud"></i> 云端分析
+                            <span class="badge">更准确</span>
+                        </button>
+                    </div>
+                    <p class="mode-description" id="modeDesc">
+                        本地分析使用浏览器内的AI模型，完全保护隐私
+                    </p>
+                </div>
+            </div>
+
+            <!-- 右侧：分析结果和提示词 -->
+            <div class="right-panel">
+                <!-- 分析结果 -->
+                <div class="result-section">
+                    <h2><i class="fas fa-chart-bar"></i> 分析结果</h2>
+                    <div class="results-container" id="resultsContainer">
+                        <div class="empty-state">
+                            <i class="fas fa-image"></i>
+                            <p>上传图片后，点击"AI分析图片"查看结果</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 提示词生成 -->
+                <div class="prompt-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-magic"></i> AI提示词生成</h2>
+                        <div class="style-selector">
+                            <select id="styleSelect" onchange="generatePrompt()">
+                                <option value="photorealistic">写实风格</option>
+                                <option value="anime">动漫风格</option>
+                                <option value="oil_painting">油画风格</option>
+                                <option value="digital_art">数字艺术</option>
+                                <option value="minimalist">极简风格</option>
+                                <option value="cinematic">电影风格</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="prompt-output-container">
+                        <textarea id="promptOutput" readonly placeholder="生成的提示词将显示在这里..."></textarea>
+                        <div class="prompt-actions">
+                            <button class="btn btn-success" onclick="copyPrompt()">
+                                <i class="fas fa-copy"></i> 复制
+                            </button>
+                            <button class="btn btn-info" onclick="regeneratePrompt()">
+                                <i class="fas fa-sync-alt"></i> 重新生成
+                            </button>
+                            <button class="btn btn-warning" onclick="optimizePrompt()">
+                                <i class="fas fa-wand-magic-sparkles"></i> 优化
+                            </button>
+                            <button class="btn btn-secondary" onclick="savePrompt()">
+                                <i class="fas fa-save"></i> 保存
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 历史记录 -->
+                <div class="history-section">
+                    <h2><i class="fas fa-history"></i> 历史记录</h2>
+                    <div class="history-list" id="historyList">
+                        <!-- 历史记录会动态加载 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 页脚 -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="tech-stack">
+                    <span class="tech-badge">TensorFlow.js</span>
+                    <span class="tech-badge">Vercel Functions</span>
+                    <span class="tech-badge">GitHub Pages</span>
+                </div>
+                <p class="footer-info">
+                    <i class="fas fa-shield-alt"></i> 所有分析在本地完成，完全保护隐私
+                    <br>
+                    <i class="fas fa-code"></i> 开源项目: 
+                    <a href="https://github.com/yourusername/image-prompt-generator" target="_blank">
+                        GitHub仓库
+                    </a>
+                </p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 模态框：保存提示词 -->
+    <div class="modal" id="saveModal">
+        <div class="modal-content">
+            <h3><i class="fas fa-save"></i> 保存提示词</h3>
+            <input type="text" id="promptTitle" placeholder="给提示词起个名字">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="confirmSave()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知 -->
+    <div id="notification"></div>
+
+    <script src="/script.js"></script>
+</body>
+</html>
